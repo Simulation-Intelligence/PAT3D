@@ -9,6 +9,8 @@
 <sup>3</sup>The Hong Kong University of Science and Technology &nbsp;&nbsp; <sup>4</sup>Genesis AI </p> <p> <strong>International Conference on Learning Representations (ICLR), 2026</strong> </p>
 
 <a href="https://arxiv.org/pdf/2511.21978"><img src="https://img.shields.io/badge/Arxiv-Paper-red?style=flat&logo=arxiv" alt="Arxiv"></a>
+<a href="https://github.com/Simulation-Intelligence/PAT3D"><img src="https://img.shields.io/badge/GitHub-Code-181717?style=flat&logo=github" alt="Code"></a>
+<a href="https://simulation-intelligence.github.io/PAT3D/"><img src="https://img.shields.io/badge/Project-Website-0f766e?style=flat" alt="Website"></a>
 
 
 <div align="center">
@@ -20,7 +22,8 @@
 
 ## Generation  
 
-Code coming soon...
+- Code: https://github.com/Simulation-Intelligence/PAT3D
+- Website: https://simulation-intelligence.github.io/PAT3D/
 
 
 ## Citation
@@ -43,6 +46,5 @@ Code coming soon...
 ## Acknowledgement
 
 The simulation part of this project is developed based on the open-source project [libuipc](https://github.com/spiriMirror/libuipc). We sincerely thank all the authors of that project!
-
 
 

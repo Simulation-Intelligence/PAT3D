@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="PAT3D is a physics-augmented text-to-3D scene generation framework for physically plausible, simulation-ready, and intersection-free 3D scenes.">
+  <meta name="keywords" content="PAT3D, Text-to-3D, 3D Scene Generation, Physics Simulation">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PAT3D: Physics-Augmented Text-to-3D Scene Generation</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro|Quicksand:500;600" rel="stylesheet">
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="icon" href="./static/images/favicon.svg">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/index.js"></script>
+  <style>
+    .comparison-note {
+      margin-bottom: 1.5rem;
+    }
+
+    .comparison-table-wrapper {
+      overflow-x: auto;
+    }
+
+    .comparison-table {
+      width: 100%;
+      min-width: 1100px;
+      border-collapse: collapse;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      border: 1px solid #e5e7eb;
+      padding: 0.75rem;
+      text-align: center;
+      vertical-align: top;
+    }
+
+    .comparison-table th {
+      background: #f5f7fa;
+      font-weight: 700;
+    }
+
+    .comparison-prompt {
+      min-width: 180px;
+      max-width: 220px;
+      text-align: center;
+      white-space: normal;
+      word-break: break-word;
+      font-family: "Quicksand", "Noto Sans", sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    model-viewer.comparison-model {
+      width: 240px;
+      height: 240px;
+      margin: 0 auto;
+      background: #f8fafc;
+      border-radius: 12px;
+      --poster-color: #f8fafc;
+    }
+
+    .application-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem;
+    }
+
+    .application-grid + .application-grid {
+      margin-top: 1.5rem;
+    }
+
+    .application-card {
+      padding: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .application-card h3 {
+      margin-bottom: 0.5rem;
+    }
+
+    .application-card p {
+      margin-bottom: 1rem;
+    }
+
+    .application-subsection-title {
+      margin: 2rem 0 1rem;
+    }
+
+    .comparison-video {
+      width: 100%;
+      display: block;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    .application-image {
+      width: 80%;
+      margin: 0 auto;
+      display: block;
+      border-radius: 12px;
+      background: #f8fafc;
+      object-fit: contain;
+    }
+
+    .robotics-row .application-card {
+      width: 100%;
+      grid-column: 1 / -1;
+      justify-self: center;
+    }
+
+    .demo-video-row .application-card {
+      width: 100%;
+      grid-column: 1 / -1;
+      justify-self: center;
+    }
+
+    .demo-video-link {
+      margin-bottom: 0;
+    }
+
+    @media screen and (max-width: 768px) {
+      .application-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .robotics-row .application-card {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </a>
+  </div>
+  <div class="navbar-menu">
+    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+      <a class="navbar-item" href="./">
+        <span class="icon"><i class="fas fa-home"></i></span>
+      </a>
+      <a class="navbar-item" href="#method">Method</a>
+      <a class="navbar-item" href="#demo-video">Demo Video</a>
+      <a class="navbar-item" href="#applications">Applications</a>
+      <a class="navbar-item" href="#results">Results</a>
+      <a class="navbar-item" href="#citation">Citation</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">PAT3D: Physics-Augmented Text-to-3D Scene Generation</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><a href="https://carrie-lin.github.io/">Guying Lin</a>,</span>
+            <span class="author-block"><a href="https://kemenghuang.github.io/">Kemeng Huang</a>,</span>
+            <span class="author-block"><a href="https://www.csd.cmu.edu/people/doctoral-student/michael-liu">Michael Liu</a>,</span>
+            <span class="author-block"><a href="https://ruihangao.github.io/">Ruihan Gao</a>,</span>
+            <span class="author-block"><a href="https://kokecacao.me/?page=sanity">Hanke Chen</a>,</span>
+            <span class="author-block"><a href="https://scholar.google.com/citations?user=l3kzk0EAAAAJ&amp;hl=en">Lyuhao Chen</a>,</span>
+            <span class="author-block"><a href="https://beijia11.github.io/">Beijia Lu</a>,</span>
+            <br>
+            <span class="author-block"><a href="https://scholar.google.com/citations?user=TApLOhkAAAAJ">Taku Komura</a>,</span>
+            <span class="author-block"><a href="https://liuyuan-pal.github.io/">Yuan Liu</a>,</span>
+            <span class="author-block"><a href="https://www.cs.cmu.edu/~junyanz/">Jun-Yan Zhu</a>,</span>
+            <span class="author-block"><a href="https://www.cs.cmu.edu/~minchenl/">Minchen Li</a></span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">ICLR 2026</span>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <span class="link-block">
+                <a href="https://arxiv.org/abs/2511.21978" class="external-link button is-normal is-rounded" style="background-color:#ffffff; color: #e8562a; border: 2px solid #e8562a;">
+                  <span class="icon" style="color:#e8562a;"><i class="ai ai-arxiv"></i></span>
+                  <span>arXiv</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://openreview.net/pdf?id=iIRxFkeCuY" class="external-link button is-normal is-rounded" style="background-color:#ffffff; color: #4378bf; border: 2px solid #4378bf;">
+                  <span class="icon" style="color:#4378bf;"><i class="fas fa-file-pdf"></i></span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://www.csd.cmu.edu/news/teaching-aigenerated-scenes-to-obey-physics" class="external-link button is-normal is-rounded" style="background-color:#ffffff; color: #FFD43B; border: 2px solid #FFD43B;">
+                  <span class="icon" style="color:#FFD43B;"><i class="fas fa-bullhorn"></i></span>
+                  <span>Press</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://github.com/Simulation-Intelligence/PAT3D" class="external-link button is-normal is-rounded" style="background-color:#f5f5f5; color: #24292e; border: 2px solid #24292e;">
+                  <span class="icon" style="color:#24292e;"><i class="fab fa-github"></i></span>
+                  <span>Code</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="https://huggingface.co/datasets/guyingl/pat3d/tree/main/experiments" class="external-link button is-normal is-rounded" style="background-color:#f5f5f5; color: #6c757d; border: 2px solid #6c757d;">
+                  <span class="icon" style="color:#6c757d;"><i class="far fa-images"></i></span>
+                  <span>Data</span>
+                </a>
+              </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <img src="./static/images/teaser.png" alt="PAT3D teaser image" class="teaser-image">
+      <h2 class="subtitle has-text-centered">
+        PAT3D couples text-driven 3D generation with differentiable rigid-body simulation to produce stable,
+        physically plausible, and simulation-ready scenes.
+      </h2>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="method">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            We introduce PAT3D, a physics-augmented text-to-3D scene generation framework that integrates
+            vision-language models with physics-based simulation to produce physically plausible and
+            intersection-free 3D scenes.
+          </p>
+          <p>
+            Given a text prompt, PAT3D generates 3D objects, infers spatial relations, and organizes them into
+            a hierarchical scene tree. This structure is converted into initial simulation conditions, where a
+            differentiable rigid-body simulator drives the scene toward static equilibrium under gravity.
+          </p>
+          <p>
+            A simulation-in-the-loop optimization step further improves physical stability and semantic
+            consistency, yielding scenes that are directly usable for downstream simulation, editing, and robotic
+            manipulation tasks.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3 has-text-centered">Method Overview</h2>
+        <div class="content has-text-centered">
+          <img src="./static/images/pipeline.png" class="method-image" alt="PAT3D method overview">
+          <p class="method-caption">
+            <ul style="text-align: left; display: inline-block; margin: 0; padding-left: 1.3em;">
+              <li>
+                Given an input text, a reference image is first generated to capture spatial relations among objects, from which 3D assets are generated using vision foundation models, and a scene tree is extracted using a VLM.
+              </li>
+              <li>
+                Assets are arranged into an initial layout using 3D priors from monocular depth estimation (left), then refined with the scene tree to produce an intersection-free configuration for simulation (right).
+              </li>
+              <li>
+                Forward simulation ensures physical plausibility but may distort semantics (left). We address this with simulation-in-the-loop optimization, enforcing semantic consistency and physical validity (right).
+              </li>
+            </ul>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="demo-video">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3 has-text-centered">Demo Video</h2>
+        <div class="application-grid demo-video-row">
+          <div class="application-card">
+            <h3 class="title is-5">PAT3D Demonstration</h3>
+            <p>
+              An end-to-end demo video showing PAT3D scene generation and physically plausible results.
+            </p>
+            <video class="comparison-video" controls playsinline preload="metadata">
+              <source src="https://huggingface.co/datasets/guyingl/pat3d/resolve/main/media/demo_100mb_hq.mp4" type="video/mp4">
+            </video>
+            <p class="demo-video-link">
+              <a href="https://huggingface.co/datasets/guyingl/pat3d/resolve/main/media/original_demo.mp4" target="_blank" rel="noopener noreferrer">
+                View the original demo video on Hugging Face
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="applications">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3 has-text-centered">Applications</h2>
+        <div class="application-grid" id="video-application-grid"></div>
+        <div class="application-grid robotics-row" id="robotics-application-grid"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+
+<section class="section" id="results">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3 has-text-centered">Baseline Comparison</h2>
+        <p class="comparison-note has-text-centered">
+          The examples below follow the asset folder structure from the baseline comparison set and show the text prompt
+          and 3D outputs for each method. Blank GraphDreamer entries indicate out-of-memory failures with no result
+          produced.
+        </p>
+        <div class="comparison-table-wrapper">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Prompt</th>
+                <th>GraphDreamer</th>
+                <th>Blender-MCP</th>
+                <th>MIDI</th>
+                <th>Ours</th>
+              </tr>
+            </thead>
+            <tbody id="baseline-comparison-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="citation">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@inproceedings{
+      lin2026patd,
+      title={{PAT}3D: Physics-Augmented Text-to-3D Scene Generation},
+      author={Guying Lin and Kemeng Huang and Michael Liu and Ruihan Gao and Hanke Chen and Lyuhao Chen and Beijia Lu and Taku Komura and Yuan Liu and Jun-Yan Zhu and Minchen Li},
+      booktitle={The Fourteenth International Conference on Learning Representations},
+      year={2026},
+      url={https://openreview.net/forum?id=iIRxFkeCuY}
+      }
+</code></pre>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-centered">
+          <p>
+            Website framework adapted from the <a href="https://github.com/nerfies/nerfies.github.io">Nerfies template</a>.
+            Replace placeholders with project videos, demos, and benchmark tables as needed.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const assetBasePath = "https://huggingface.co/datasets/guyingl/pat3d/resolve/main/experiments";
+  const mediaConfig = {
+    useCdn: false,
+    localBaseUrl: "./media",
+    cdnBaseUrl: "https://your-cdn-domain.example.com/pat3d"
+  };
+
+  const videoItems = [
+    {
+      title: "Scene Editing",
+      description: "Edit generated 3D scenes while preserving physical plausibility.",
+      filename: "editing.mp4"
+    },
+    {
+      title: "Animation",
+      description: "Generate simulation-ready scenes that can be animated directly.",
+      filename: "animation.MP4"
+    }
+  ];
+
+  const imageApplications = [
+    {
+      title: "Robotic Manipulation",
+      description: "Directly import generated scenes into a simulator to validate robotic manipulation policies.",
+      image: { src: "./media/robotic.png", alt: "Robotic manipulation examples", caption: "Successful and failed grasp examples for policy evaluation" }
+    }
+  ];
+  const experiments = [
+    {
+      slug: "01_bed_bookshelf",
+      prompt: '"a cozy cartoon setup with a bed, beside table, lamp, bookshelf, and a small dog on the bed."'
+    },
+    {
+      slug: "02_sofa_coffeetable",
+      prompt: '"a luxurious CG scene with a couch, coffee table, small art piece, a cozy rug."'
+    },
+    {
+      slug: "03_bed_lamp",
+      prompt: '"a warm setup with a bed, bedside tables, plant, a few books, and a small decorative lamp."'
+    },
+    {
+      slug: "04_bunny_pancake",
+      prompt: '"a baby bunny sitting on top of a stack of pancakes."'
+    },
+    {
+      slug: "05_wizard_study",
+      prompt: '"a Wizard standing in front of a Wooden Desk, gazing into a Crystal Ball perched atop the Wooden Desk, with a Stack of Ancient Spell Books perched atop the Wooden Desk."'
+    },
+    {
+      slug: "07_vase_table",
+      prompt: '"On a table, there is a vase with a bouquet of flowers. Beside it, there is a plate of cake."'
+    },
+    {
+      slug: "08_fruit_basket",
+      prompt: '"Horizontal perspective, showing the complete objects. In a basket of fruit, there are 5 fruits."'
+    },
+    {
+      slug: "09_cups_plates",
+      prompt: '"Horizontal perspective, showing the complete objects. Four stacked cups and four stacked plates."'
+    },
+    {
+      slug: "10_toothbrush_soap",
+      prompt: '"A white ceramic cup holds two blue and green toothbrushes, a blue and white toothpaste tube, and a blue-handled razor, while a white soap dish beside it contains two bars of soap-one white and one beige."'
+    },
+    {
+      slug: "11_radio_books",
+      prompt: '"A vintage wooden radio with a small cow figurine on top sits on a stack of three hardcover books, next to a wooden cup holding colorful pencils."'
+    },
+    {
+      slug: "15_stacked_blocks",
+      prompt: '"A stack of colorful wooden blocks arranged vertically, featuring red, blue, yellow, green, orange, and purple pieces, balanced on a flat surface."'
+    }
+  ];
+
+  const methods = ["graphdreamer", "blenderMCP", "midi", "ours"];
+  const missingResults = new Set([
+    "01_bed_bookshelf/graphdreamer",
+    "10_toothbrush_soap/graphdreamer"
+  ]);
+
+  function trimTrailingSlash(url) {
+    return url.replace(/\/+$/, "");
+  }
+
+  function getMediaBaseUrl() {
+    return mediaConfig.useCdn ? mediaConfig.cdnBaseUrl : mediaConfig.localBaseUrl;
+  }
+
+  function buildVideoCard(video) {
+    const mediaBaseUrl = trimTrailingSlash(getMediaBaseUrl());
+    const videoUrl = `${mediaBaseUrl}/${video.filename}`;
+
+    return `
+      <div class="application-card">
+        <h3 class="title is-5">${video.title}</h3>
+        <p>${video.description}</p>
+        <video class="comparison-video" controls muted playsinline preload="metadata">
+          <source src="${videoUrl}" type="video/mp4">
+        </video>
+      </div>
+    `;
+  }
+
+  function buildImageApplicationCard(application) {
+    return `
+      <div class="application-card">
+        <h3 class="title is-5">${application.title}</h3>
+        <p>${application.description}</p>
+        <figure class="application-figure">
+          <img class="application-image" src="${application.image.src}" alt="${application.image.alt}">
+        </figure>
+      </div>
+    `;
+  }
+
+  function formatPrompt(prompt) {
+    return prompt.replace(/(^\s*["']?)([a-z])/, (_, prefix, firstChar) => `${prefix}${firstChar.toUpperCase()}`);
+  }
+
+  function buildModelCell(slug, method) {
+    if (missingResults.has(`${slug}/${method}`)) {
+      return "";
+    }
+
+    return `
+      <model-viewer
+        class="comparison-model"
+        src="${assetBasePath}/${slug}/${method}/output.glb"
+        camera-controls
+        auto-rotate
+        shadow-intensity="1"
+        exposure="0.9"
+        alt="${method} output for ${slug}">
+      </model-viewer>
+    `;
+  }
+
+  function buildRow(experiment) {
+    const methodCells = methods.map((method) => `<td>${buildModelCell(experiment.slug, method)}</td>`).join("");
+
+    return `
+      <tr>
+        <td class="comparison-prompt">${formatPrompt(experiment.prompt)}</td>
+        ${methodCells}
+      </tr>
+    `;
+  }
+
+  const videoApplicationGrid = document.getElementById("video-application-grid");
+  videoApplicationGrid.innerHTML = videoItems.map(buildVideoCard).join("");
+
+  const roboticsApplicationGrid = document.getElementById("robotics-application-grid");
+  roboticsApplicationGrid.innerHTML = imageApplications.map(buildImageApplicationCard).join("");
+
+  const comparisonBody = document.getElementById("baseline-comparison-body");
+  comparisonBody.innerHTML = experiments.map(buildRow).join("");
+</script>
+
+</body>
+</html>
