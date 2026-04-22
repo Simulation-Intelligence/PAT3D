@@ -31,15 +31,14 @@
 
 
 ```bibtex
-@misc{lin2025pat3dphysicsaugmentedtextto3dscene,
-      title={PAT3D: Physics-Augmented Text-to-3D Scene Generation}, 
+@inproceedings{
+      lin2026patd,
+      title={{PAT}3D: Physics-Augmented Text-to-3D Scene Generation},
       author={Guying Lin and Kemeng Huang and Michael Liu and Ruihan Gao and Hanke Chen and Lyuhao Chen and Beijia Lu and Taku Komura and Yuan Liu and Jun-Yan Zhu and Minchen Li},
-      year={2025},
-      eprint={2511.21978},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2511.21978}, 
-}
+      booktitle={The Fourteenth International Conference on Learning Representations},
+      year={2026},
+      url={https://openreview.net/forum?id=iIRxFkeCuY}
+      }
 ```
 
 
