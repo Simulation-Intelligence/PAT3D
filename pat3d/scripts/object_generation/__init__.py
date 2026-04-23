@@ -1,0 +1,1 @@
+"""Object-generation subprocess entrypoints."""

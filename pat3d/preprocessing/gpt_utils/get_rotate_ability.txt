@@ -1,0 +1,9 @@
+Format Requirement:
+Your response must strictly follow this JSON format, as it will be processed by a code script. If the object is allowed to turnover, then set the value to be 'True'. Otherwise, set the value to be 'False'. The structure should be:
+{
+    "object-name1": True,
+    "object-name2": False,
+    "object-name3": True
+}
+
+Please replace the keys of the dict with the actual names of the objects. Do not include any additional text or extraneous details beyond the judgment of whether the object is allowed to rotate.

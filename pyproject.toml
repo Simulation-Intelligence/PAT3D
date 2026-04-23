@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pat3d"
+version = "0.1.0"
+description = "PAT3D: Physics-augmented text-to-3D scene generation."
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+keywords = ["3d", "vision", "physics", "scene-generation"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Operating System :: POSIX :: Linux",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "numpy==1.26.4",
+  "Pillow==12.1.1",
+  "trimesh==4.11.2",
+]
+
+[project.scripts]
+pat3d-run-pipeline = "pat3d.cli.run_pipeline:main"
+pat3d-run-preprocess = "pat3d.cli.run_preprocess:main"
+
+[tool.setuptools.packages.find]
+include = ["pat3d*"]
+
+[tool.setuptools.package-data]
+"pat3d.metrics.semantics.phys_plausibility" = ["*.txt"]
+"pat3d.preprocessing.gpt_utils" = ["*.txt", "*.example"]
+"pat3d.preprocessing.img_utils" = ["*.txt"]

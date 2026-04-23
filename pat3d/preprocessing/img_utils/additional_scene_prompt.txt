@@ -1,0 +1,2 @@
+Horizontal perspective of the scene. 
+The image shows the complete objects.

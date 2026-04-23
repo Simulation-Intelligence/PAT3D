@@ -1,0 +1,2 @@
+Horizontal perspective of the object. 
+The image shows the complete shape of the object.

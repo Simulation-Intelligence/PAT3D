@@ -1,0 +1,9 @@
+.git
+.gitignore
+.conda
+.github
+dashboard/node_modules/
+dashboard/dist/
+dashboard/build/
+*.pyc
+__pycache__/

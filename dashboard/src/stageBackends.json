@@ -1,0 +1,110 @@
+{
+  "reference-image": {
+    "label": "Reference image",
+    "role": "text_to_image_provider",
+    "default": "openai_text_to_image",
+    "options": [
+      {
+        "value": "openai_text_to_image",
+        "label": "OpenAI image",
+        "description": "Generate the anchor image with the configured OpenAI-compatible image model."
+      }
+    ]
+  },
+  "scene-understanding-depth": {
+    "label": "Depth estimation",
+    "role": "depth_estimator",
+    "default": "current_depth",
+    "options": [
+      {
+        "value": "current_depth",
+        "label": "DepthPro",
+        "description": "Use the local DepthPro-based depth estimator."
+      }
+    ]
+  },
+  "scene-understanding-segmentation": {
+    "label": "Segmentation",
+    "role": "segmenter",
+    "default": "sam3_segmenter",
+    "options": [
+      {
+        "value": "sam3_segmenter",
+        "label": "SAM 3 text prompts",
+        "description": "Use Meta SAM 3 with the requested-object hints as text prompts. Requires the dedicated `pat3d-sam3` env or PAT3D_SAM3_PYTHON, plus checkpoint access."
+      }
+    ]
+  },
+  "object-relation": {
+    "label": "Object relations",
+    "role": "structured_llm",
+    "default": "openai_structured_llm",
+    "options": [
+      {
+        "value": "openai_structured_llm",
+        "label": "OpenAI LLM",
+        "description": "Use the structured LLM adapter for descriptions, relations, and size priors."
+      }
+    ]
+  },
+  "object-assets": {
+    "label": "Object assets",
+    "role": "text_to_3d_provider",
+    "default": "current_text_to_3d",
+    "options": [
+      {
+        "value": "current_text_to_3d",
+        "label": "Hunyuan3D",
+        "description": "Generate textured object assets with the current Hunyuan-based path."
+      }
+    ]
+  },
+  "layout-initialization": {
+    "label": "Layout initialization",
+    "role": "layout_builder",
+    "default": "legacy_layout",
+    "options": [
+      {
+        "value": "legacy_layout",
+        "label": "Legacy bridge",
+        "description": "Use the legacy layout bridge with the refactored projection-aware refinement step."
+      }
+    ]
+  },
+  "simulation-preparation": {
+    "label": "Simulation prep",
+    "role": "mesh_simplifier",
+    "default": "current_mesh_simplifier",
+    "options": [
+      {
+        "value": "current_mesh_simplifier",
+        "label": "fTetWild",
+        "description": "Prepare low-poly and tet-ready meshes with the repo-local simplifier path."
+      }
+    ]
+  },
+  "physics-optimization": {
+    "label": "Physics simulation",
+    "role": "physics_optimizer",
+    "default": "legacy_physics",
+    "options": [
+      {
+        "value": "legacy_physics",
+        "label": "Diff GIPC",
+        "description": "Run the required Diff GIPC / IPC-backed physics stage with paper-aligned forward settings and optional diff-sim initialization."
+      }
+    ]
+  },
+  "visualization": {
+    "label": "Visualization",
+    "role": "scene_renderer",
+    "default": "geometry_scene_renderer",
+    "options": [
+      {
+        "value": "geometry_scene_renderer",
+        "label": "Geometry viewer",
+        "description": "Export the geometry-based preview and web scene bundle."
+      }
+    ]
+  }
+}

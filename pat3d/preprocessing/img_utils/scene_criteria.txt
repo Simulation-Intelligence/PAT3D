@@ -1,0 +1,3 @@
+The image is taken with a horizontal perspective.
+The image presents the entire scene completely.
+There are less than 10 objects in the scene.

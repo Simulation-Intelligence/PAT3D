@@ -1,0 +1,23 @@
+{
+  "name": "pat3d-stage-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --watch server --watch vite.config.js --ext mjs,js --exec \"NODE_ENV=development PORT=4173 node server/index.mjs\"",
+    "build": "vite build",
+    "start": "NODE_ENV=production PORT=4173 node server/index.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.163.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "nodemon": "^3.1.10",
+    "playwright": "^1.59.1",
+    "vite": "^5.4.19"
+  }
+}

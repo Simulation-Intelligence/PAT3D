@@ -1,0 +1,9 @@
+According to the image, please provide a concise description of this object's shape, orientation, color, and material. For the description of orientation, please choose one state between horizontal and vertical to describe it. If the object is designed to hold items, such as a bookshelf, a cup, or a plate, make sure to start the description with the word "empty," like "an empty cup" or "an empty bookshelf."
+If an object is partially blocked, please describe the complete object and don't describe it as partial.
+
+Format Requirement:
+Your response must strictly follow this JSON format, as it will be processed by a code script. The structure should be:
+{
+    "object-name": "A paragraph of the description of this object."
+}
+Do not include any additional text or extraneous details beyond the object's description.

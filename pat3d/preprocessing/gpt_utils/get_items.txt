@@ -1,0 +1,13 @@
+Describe all unique object categories in the given image, ensuring all pixels are accounted for and assigned to one of the categories. Include all movable and static objects present in the image. Each category name must be a single word in singular noun format and must not contain a '-' character. Categories should be distinct and non-overlapping within the image. The object categories should represent things (objects with a well-defined shape, e.g., car, person) rather than stuff (amorphous background regions, e.g., grass, sky, or the largest segmentation components). If there are multiple instances of the same category in the image, indicate the total number of objects for that category.
+Don't segment the scene in a too detailed way. There are at most 8 objects in the scene.
+
+Format Requirement:
+You must present your answer in the following JSON format, as it will be processed by a code script. The answer must follow this structure:
+
+{
+    "category-1": 1,
+    "category-2": 5,
+    "category-3": 1
+}
+
+Do not include any additional text or unnecessary information beyond the category names and object counts.

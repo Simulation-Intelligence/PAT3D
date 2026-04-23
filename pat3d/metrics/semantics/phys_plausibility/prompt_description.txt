@@ -1,0 +1,2 @@
+The semantic meaning of this scene is: ‘...‘. Please evaluate whether the physical relationships in this image are reasonable and whether the contacts between objects are physically
+realistic. Give this scene a physical plausibility score from 0 to 100.

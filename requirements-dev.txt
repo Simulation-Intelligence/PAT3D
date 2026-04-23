@@ -1,0 +1,4 @@
+pillow>=10.0.0
+trimesh>=4.0.0
+opencv-python-headless==4.11.0.86
+pymeshfix==0.18.0

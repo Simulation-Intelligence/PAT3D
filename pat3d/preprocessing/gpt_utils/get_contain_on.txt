@@ -1,0 +1,35 @@
+Please analyze the direct physical relationships between the objects and determine whether an object is directly "on" another object or directly "in" another object.
+
+Format Requirement:
+
+Return a strict JSON object with exactly one top-level key named "relations".
+The value of "relations" must be a list of objects.
+Each relation object must contain exactly these string fields:
+- "child": the object that is being supported or contained
+- "relation": either "on" or "in"
+- "parent": the direct supporter or direct container
+
+Only include direct contact relationships. Do not include transitive relationships.
+If an object has no direct parent, omit it from the list.
+Use exactly the object-instance names provided in the prompt.
+If a repeated category is listed with numbered instances such as "book1" and "book2", do not use the unnumbered canonical name "book" in the output.
+
+Example:
+{
+  "relations": [
+    {"child": "ball1", "relation": "in", "parent": "basket1"}
+  ]
+}
+
+Another example:
+{
+  "relations": [
+    {"child": "book1", "relation": "on", "parent": "table1"},
+    {"child": "book2", "relation": "on", "parent": "book1"}
+  ]
+}
+
+Important Notes:
+
+Present the result strictly in JSON format for processing by a code script.
+Do not include any additional text or keys.

@@ -1,0 +1,20 @@
+Please analyze the relationships between the objects and determine if any object is contained within another.
+
+Format Requirement:
+
+Organize the output as a dictionary where each key represents the name of an object. The value for each key is a list. If an object (the key) is contained within another object (referred to as the container object), include the container object in the list corresponding to the key.
+
+Example:
+
+If the scene contains objects named "ball1", "ball2", and "basket1", and "ball1" is contained within "basket1", the result should look like this:
+{
+    "basket1": [],
+    "ball1": ["basket1"],
+    "ball2": []
+}
+Replace "ball1", "ball2", and "basket1" with the actual object names from the scene.
+
+Important Notes:
+
+Present the result strictly in JSON format for processing by a code script.
+Do not include any additional text or information beyond the object names and their containment relationships.
