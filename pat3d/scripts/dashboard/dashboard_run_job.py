@@ -60,6 +60,7 @@ from pat3d.stages.object_assets import (
     clone_generated_asset_for_object_id,
     expand_object_asset_requests,
     instance_object_ids,
+    resolve_object_reference_image_for_asset_request,
 )
 from pat3d.providers._relation_utils import materialize_size_priors_for_instances
 from pat3d.providers.prompt_based_extractors import _default_size_dimensions
@@ -1540,22 +1541,27 @@ def run_object_asset_stage(
             current_stage_id=stage_id,
             log_name=log_name,
         )
+        object_reference_image, has_instance_reference_image = (
+            resolve_object_reference_image_for_asset_request(
+                object_reference_images,
+                object_id=description.object_id,
+                source_object_id=source_object_id,
+            )
+        )
         cached_asset = cached_assets_by_source_id.get(source_object_id)
-        if cached_asset is not None:
+        if cached_asset is not None and not has_instance_reference_image:
             generated_asset = clone_generated_asset_for_object_id(cached_asset, description.object_id)
         else:
             generation_kwargs = {
-                "object_reference_image": (
-                    object_reference_images.get(description.object_id)
-                    or object_reference_images.get(source_object_id)
-                ),
+                "object_reference_image": object_reference_image,
             }
             if supports_source_object_count:
                 generation_kwargs["source_object_count"] = source_object_count
             if supports_scene_object_canonical_names:
                 generation_kwargs["scene_object_canonical_names"] = scene_object_canonical_names
             generated_asset = generate_callable(description, **generation_kwargs)
-            cached_assets_by_source_id[source_object_id] = generated_asset
+            if not has_instance_reference_image:
+                cached_assets_by_source_id[source_object_id] = generated_asset
         generated_assets.append(generated_asset)
         if outputs is not None and output_path is not None:
             outputs["object_assets"] = ObjectAssetGenerationOutputs(
@@ -1968,6 +1974,7 @@ def build_runtime_config(
             "ground_y_value": float(resolved_physics_settings["ground_y_value"]),
             "contact_d_hat": float(resolved_physics_settings["contact_d_hat"]),
             "contact_eps_velocity": float(resolved_physics_settings["contact_eps_velocity"]),
+            "adaptive_end_frame_enabled": False,
         }
         if bool(resolved_physics_settings["diff_sim_enabled"]):
             legacy_arg_overrides.update(

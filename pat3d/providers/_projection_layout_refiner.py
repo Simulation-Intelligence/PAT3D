@@ -11,6 +11,7 @@ import trimesh
 
 from pat3d.models import ArtifactRef, ObjectPose, SceneRelationGraph
 from pat3d.providers._layout_circle_packing import pack_circle_centers_in_bounds
+from pat3d.providers._relation_utils import is_parent_child_relation_type
 
 
 @dataclass
@@ -231,11 +232,10 @@ class ProjectionAwareLayoutRefiner:
     ) -> set[str]:
         if relation_graph is None:
             return set()
-        managed_types = {"supports", "on", "contains", "in"}
         return {
             relation.parent_object_id
             for relation in relation_graph.relations
-            if str(getattr(relation.relation_type, "value", relation.relation_type)).strip().lower() in managed_types
+            if is_parent_child_relation_type(relation.relation_type)
         }
 
     def _resolve_group(
@@ -341,8 +341,6 @@ class ProjectionAwareLayoutRefiner:
         if len(states) <= 1:
             return []
 
-        containment_pairs = self._containment_pairs(relation_graph)
-        support_pairs = self._support_pairs(relation_graph)
         exempt_pairs = ignored_pairs or set()
         moves: list[dict[str, object]] = []
         for _ in range(self._max_iterations):
@@ -358,13 +356,6 @@ class ProjectionAwareLayoutRefiner:
                     if overlap_xz is None:
                         continue
                     if not self._vertical_overlap(left_state, right_state):
-                        continue
-                    if self._allows_containment_overlap(
-                        left_state,
-                        right_state,
-                        containment_pairs=containment_pairs,
-                        support_pairs=support_pairs,
-                    ):
                         continue
                     delta = self._separation_delta(left_state, right_state, overlap_xz)
                     right_state.translate(delta)
@@ -389,13 +380,6 @@ class ProjectionAwareLayoutRefiner:
                 if overlap_xz is None:
                     continue
                 if not self._vertical_overlap(left_state, right_state):
-                    continue
-                if self._allows_containment_overlap(
-                    left_state,
-                    right_state,
-                    containment_pairs=containment_pairs,
-                    support_pairs=support_pairs,
-                ):
                     continue
                 lift = np.array(
                     [0.0, left_state.vertical_max - right_state.vertical_min + self._layer_gap, 0.0],
@@ -510,20 +494,14 @@ class ProjectionAwareLayoutRefiner:
         if relation_graph is None or not relation_graph.relations:
             return []
 
-        child_ids_by_parent_and_kind: dict[tuple[str, str], list[str]] = {}
+        child_ids_by_parent: dict[str, list[str]] = {}
         for relation in relation_graph.relations:
-            relation_type = str(getattr(relation.relation_type, "value", relation.relation_type)).strip().lower()
-            if relation_type in {"supports", "on"}:
-                move_kind = "support_projection"
-            elif relation_type in {"contains", "in"}:
-                move_kind = "containment_projection"
-            else:
+            if not is_parent_child_relation_type(relation.relation_type):
                 continue
-            key = (relation.parent_object_id, move_kind)
-            child_ids_by_parent_and_kind.setdefault(key, []).append(relation.child_object_id)
+            child_ids_by_parent.setdefault(relation.parent_object_id, []).append(relation.child_object_id)
 
         parent_ids_by_child: dict[str, set[str]] = {}
-        for (parent_id, _move_kind), child_ids in child_ids_by_parent_and_kind.items():
+        for parent_id, child_ids in child_ids_by_parent.items():
             for child_id in child_ids:
                 parent_ids_by_child.setdefault(child_id, set()).add(parent_id)
 
@@ -542,7 +520,7 @@ class ProjectionAwareLayoutRefiner:
             return depth_value
 
         groups: list[dict[str, object]] = []
-        for (parent_id, move_kind), child_ids in child_ids_by_parent_and_kind.items():
+        for parent_id, child_ids in child_ids_by_parent.items():
             if parent_id not in mesh_states:
                 continue
             filtered_child_ids = tuple(child_id for child_id in child_ids if child_id in mesh_states)
@@ -552,11 +530,11 @@ class ProjectionAwareLayoutRefiner:
                 {
                     "parent_id": parent_id,
                     "child_ids": filtered_child_ids,
-                    "move_kind": move_kind,
+                    "move_kind": "parent_child_projection",
                     "parent_depth": parent_depth(parent_id),
                 }
             )
-        groups.sort(key=lambda group: (int(group["parent_depth"]), str(group["parent_id"]), str(group["move_kind"])))
+        groups.sort(key=lambda group: (int(group["parent_depth"]), str(group["parent_id"])))
         return groups
 
     def _relation_overlap_exempt_pairs(
@@ -569,8 +547,7 @@ class ProjectionAwareLayoutRefiner:
 
         managed_children_by_parent: dict[str, list[str]] = {}
         for relation in relation_graph.relations:
-            relation_type = str(getattr(relation.relation_type, "value", relation.relation_type)).strip().lower()
-            if relation_type not in {"supports", "on", "contains", "in"}:
+            if not is_parent_child_relation_type(relation.relation_type):
                 continue
             managed_children_by_parent.setdefault(relation.parent_object_id, []).append(relation.child_object_id)
             exempt_pairs.add(frozenset((relation.parent_object_id, relation.child_object_id)))
@@ -602,52 +579,6 @@ class ProjectionAwareLayoutRefiner:
             layers[assigned_index].append(state)
             indices[state.object_id] = assigned_index
         return indices
-
-    def _containment_pairs(
-        self,
-        relation_graph: SceneRelationGraph | None,
-    ) -> set[tuple[str, str]]:
-        if relation_graph is None:
-            return set()
-        pairs: set[tuple[str, str]] = set()
-        for relation in relation_graph.relations:
-            relation_type = getattr(relation.relation_type, "value", relation.relation_type)
-            if str(relation_type).strip().lower() not in {"contains", "in"}:
-                continue
-            pairs.add((relation.parent_object_id, relation.child_object_id))
-        return pairs
-
-    def _support_pairs(
-        self,
-        relation_graph: SceneRelationGraph | None,
-    ) -> set[tuple[str, str]]:
-        if relation_graph is None:
-            return set()
-        pairs: set[tuple[str, str]] = set()
-        for relation in relation_graph.relations:
-            relation_type = str(getattr(relation.relation_type, "value", relation.relation_type)).strip().lower()
-            if relation_type not in {"supports", "on"}:
-                continue
-            pairs.add((relation.parent_object_id, relation.child_object_id))
-        return pairs
-
-    def _allows_containment_overlap(
-        self,
-        left_state: _LayoutMeshState,
-        right_state: _LayoutMeshState,
-        *,
-        containment_pairs: set[tuple[str, str]],
-        support_pairs: set[tuple[str, str]],
-    ) -> bool:
-        if (left_state.object_id, right_state.object_id) in support_pairs:
-            return True
-        if (right_state.object_id, left_state.object_id) in support_pairs:
-            return True
-        if (left_state.object_id, right_state.object_id) in containment_pairs:
-            return False
-        if (right_state.object_id, left_state.object_id) in containment_pairs:
-            return False
-        return False
 
     def _fits_inside_container(
         self,

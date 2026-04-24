@@ -13,8 +13,9 @@ from typing import Callable
 import trimesh
 
 from pat3d.legacy_config import load_root_parse_options, resolve_repo_root
-from pat3d.models import ArtifactRef, ObjectPose, PhysicsReadyScene, RelationType
+from pat3d.models import ArtifactRef, ObjectPose, PhysicsReadyScene
 from pat3d.models.pose_utils import matrix_to_pose, pose_to_matrix
+from pat3d.providers._relation_utils import is_parent_child_relation_type
 
 def _default_args_factory() -> object:
     args, _ = load_root_parse_options()(argv=[])
@@ -32,7 +33,7 @@ LEGACY_SHARED_DEFAULTS: dict[str, float | int] = {
 
 LEGACY_OPTIMIZE_DEFAULTS: dict[str, float | int | bool | str] = {
     **LEGACY_SHARED_DEFAULTS,
-    "adaptive_end_frame_enabled": True,
+    "adaptive_end_frame_enabled": False,
     "adaptive_controller": "sampled_criteria",
     "total_opt_epoch": 50,
     "phys_lr": 0.001,
@@ -69,6 +70,40 @@ LEGACY_OPTIMIZE_DEFAULTS: dict[str, float | int | bool | str] = {
 }
 
 DIFF_INIT_GROUND_CLEARANCE = 1e-3
+
+
+def _preload_uipc_cuda_backend_first() -> None:
+    if "uipc" in sys.modules or sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+
+        spec = importlib.util.find_spec("uipc")
+        if spec is None or spec.submodule_search_locations is None:
+            return
+        package_dir = Path(next(iter(spec.submodule_search_locations)))
+        candidate_dirs = (
+            package_dir / "modules" / "Release" / "bin",
+            package_dir / "modules" / "RelWithDebInfo" / "bin",
+            package_dir / "modules" / "releasedbg",
+            package_dir / "modules" / "release",
+        )
+        rtld_global = getattr(ctypes, "RTLD_GLOBAL", 0)
+        for module_dir in candidate_dirs:
+            if not module_dir.exists():
+                continue
+            required_libraries = (
+                "libuipc_core.so",
+                "libuipc_geometry.so",
+                "libuipc_backend_cuda.so",
+            )
+            if not all((module_dir / library_name).exists() for library_name in required_libraries):
+                continue
+            for library_name in required_libraries:
+                ctypes.CDLL(str(module_dir / library_name), mode=rtld_global)
+            return
+    except Exception:
+        return
 
 
 class LegacySequentialPhysicsAdapter:
@@ -136,13 +171,17 @@ class LegacySequentialPhysicsAdapter:
                 report["fallback_reason"] = f"{type(exc).__name__}: {exc}"
                 if simulator_cls is None:
                     raise
-                simulator_mesh_dict, _ = self._load_meshes(
+                simulator_mesh_dict, simulator_trimesh_dict = self._load_meshes(
                     physics_ready_scene,
                     simplicial_complex_io_cls,
                     transform_cls,
                 )
-                final_transformations, simulator_metrics = self._simulate_forward_transforms(
+                simulator_args, ground_adjustment = self._clone_args_with_safe_ground(
                     args,
+                    simulator_trimesh_dict,
+                )
+                final_transformations, simulator_metrics = self._simulate_forward_transforms(
+                    simulator_args,
                     simulator_cls,
                     simulator_mesh_dict,
                     tuple(mesh_dict.keys()),
@@ -158,11 +197,18 @@ class LegacySequentialPhysicsAdapter:
                     "forward_diff_simulator_failed": 0.0,
                     **simulator_metrics,
                 }
+                if ground_adjustment is not None:
+                    report["forward_fallback_ground_adjustment"] = ground_adjustment
+                applied_ground_y = self._ground_y_value(simulator_args)
                 if requested_ground_y is not None:
                     optimizer_metrics["requested_ground_y_value"] = requested_ground_y
-                    optimizer_metrics["applied_ground_y_value"] = requested_ground_y
+                    optimizer_metrics["applied_ground_y_value"] = (
+                        applied_ground_y if applied_ground_y is not None else requested_ground_y
+                    )
                     report["requested_ground_y_value"] = requested_ground_y
-                    report["applied_ground_y_value"] = requested_ground_y
+                    report["applied_ground_y_value"] = (
+                        applied_ground_y if applied_ground_y is not None else requested_ground_y
+                    )
                 report["used_forward_only_fallback"] = True
             else:
                 report["used_forward_only_fallback"] = False
@@ -170,12 +216,6 @@ class LegacySequentialPhysicsAdapter:
         optimized_object_poses = tuple(
             self._apply_transform_delta(pose, final_transformations.get(pose.object_id))
             for pose in physics_ready_scene.object_poses
-        )
-        optimized_object_poses, projected_support_count = self._project_support_contacts(
-            physics_ready_scene,
-            optimized_object_poses,
-            trimesh_dict,
-            final_transformations,
         )
         artifacts = list(self._collect_artifacts(args, report=report))
         loss_history_artifact = self._write_loss_history_summary(args)
@@ -191,7 +231,6 @@ class LegacySequentialPhysicsAdapter:
             "metrics": {
                 "legacy_diff_sim_adapter_used": 1.0,
                 "optimized_object_count": float(len(optimized_object_poses)),
-                "support_contact_projection_count": float(projected_support_count),
                 **optimizer_metrics,
             },
         }
@@ -214,23 +253,37 @@ class LegacySequentialPhysicsAdapter:
                 simplicial_complex_io_cls,
                 transform_cls,
             )
-            final_transformations, simulator_metrics = self._simulate_forward_transforms(
+            simulator_args, ground_adjustment = self._clone_args_with_safe_ground(
                 args,
+                trimesh_dict,
+            )
+            final_transformations, simulator_metrics = self._simulate_forward_transforms(
+                simulator_args,
                 simulator_cls,
                 mesh_dict,
                 tuple(mesh_dict.keys()),
                 gui_info_cls=gui_info_cls,
             )
+            applied_ground_y = self._ground_y_value(simulator_args)
+
+        ground_metrics: dict[str, float] = {}
+        if requested_ground_y is not None:
+            ground_metrics["requested_ground_y_value"] = requested_ground_y
+            ground_metrics["applied_ground_y_value"] = (
+                applied_ground_y if applied_ground_y is not None else requested_ground_y
+            )
+        if ground_adjustment is not None:
+            ground_metrics.update(
+                {
+                    "ground_y_adjusted_from": float(ground_adjustment["ground_y_adjusted_from"]),
+                    "ground_y_adjusted_to": float(ground_adjustment["ground_y_adjusted_to"]),
+                    "lowest_mesh_y": float(ground_adjustment["lowest_mesh_y"]),
+                }
+            )
 
         optimized_object_poses = tuple(
             self._apply_transform_delta(pose, final_transformations.get(pose.object_id))
             for pose in physics_ready_scene.object_poses
-        )
-        optimized_object_poses, projected_support_count = self._project_support_contacts(
-            physics_ready_scene,
-            optimized_object_poses,
-            trimesh_dict,
-            final_transformations,
         )
 
         return {
@@ -242,15 +295,7 @@ class LegacySequentialPhysicsAdapter:
                 "forward_only_simulation_used": 1.0,
                 "forward_diff_simulator_used": 1.0,
                 "forward_diff_simulator_failed": 0.0,
-                "support_contact_projection_count": float(projected_support_count),
-                **(
-                    {
-                        "requested_ground_y_value": requested_ground_y,
-                        "applied_ground_y_value": requested_ground_y,
-                    }
-                    if requested_ground_y is not None
-                    else {}
-                ),
+                **ground_metrics,
                 **simulator_metrics,
             },
         }
@@ -545,153 +590,6 @@ class LegacySequentialPhysicsAdapter:
             metadata_path=None,
         )
 
-    def _project_support_contacts(
-        self,
-        physics_ready_scene: PhysicsReadyScene,
-        optimized_object_poses: tuple[ObjectPose, ...],
-        trimesh_dict: dict[str, trimesh.Trimesh],
-        transformations: dict[str, list[list[float]]],
-    ) -> tuple[tuple[ObjectPose, ...], int]:
-        support_graph = physics_ready_scene.layout.support_graph
-        if support_graph is None or not support_graph.relations:
-            return optimized_object_poses, 0
-
-        pose_by_id = {pose.object_id: pose for pose in optimized_object_poses}
-        mesh_by_id: dict[str, trimesh.Trimesh] = {}
-        for object_id, source_mesh in trimesh_dict.items():
-            mesh = source_mesh.copy()
-            transform_matrix = transformations.get(object_id)
-            if transform_matrix is not None:
-                mesh.apply_transform(np.asarray(transform_matrix, dtype=np.float64))
-            mesh_by_id[object_id] = mesh
-
-        root_object_ids = tuple(getattr(support_graph, "root_object_ids", ()) or ())
-        ground_y = self._support_ground_y(mesh_by_id, root_object_ids)
-        projected_children: set[str] = set()
-        support_relations = [
-            relation
-            for relation in support_graph.relations
-            if getattr(relation.relation_type, "value", relation.relation_type)
-            in (RelationType.SUPPORTS.value, RelationType.ON.value)
-        ]
-
-        for _ in range(len(support_relations) + 1):
-            changed = False
-            for relation in support_relations:
-                parent_mesh = mesh_by_id.get(relation.parent_object_id)
-                child_mesh = mesh_by_id.get(relation.child_object_id)
-                child_pose = pose_by_id.get(relation.child_object_id)
-                if parent_mesh is None or child_mesh is None or child_pose is None:
-                    continue
-                support_surfaces = self._support_surfaces_for_child(
-                    relation.parent_object_id,
-                    mesh_by_id,
-                    root_object_ids=root_object_ids,
-                    ground_y=ground_y,
-                )
-                delta_y = self._support_surface_delta_y(child_mesh, support_surfaces)
-                if abs(delta_y) <= 1e-6:
-                    continue
-                child_mesh.apply_translation((0.0, -delta_y, 0.0))
-                pose_by_id[relation.child_object_id] = ObjectPose(
-                    object_id=child_pose.object_id,
-                    translation_xyz=(
-                        float(child_pose.translation_xyz[0]),
-                        float(child_pose.translation_xyz[1]) - delta_y,
-                        float(child_pose.translation_xyz[2]),
-                    ),
-                    rotation_type=child_pose.rotation_type,
-                    rotation_value=child_pose.rotation_value,
-                    scale_xyz=child_pose.scale_xyz,
-                )
-                projected_children.add(relation.child_object_id)
-                changed = True
-            if not changed:
-                break
-
-        return (
-            tuple(pose_by_id[pose.object_id] for pose in optimized_object_poses),
-            len(projected_children),
-        )
-
-    def _support_ground_y(
-        self,
-        mesh_by_id: dict[str, trimesh.Trimesh],
-        root_object_ids: tuple[str, ...],
-    ) -> float:
-        candidate_ids = [object_id for object_id in root_object_ids if object_id in mesh_by_id]
-        if not candidate_ids:
-            candidate_ids = list(mesh_by_id.keys())
-        if not candidate_ids:
-            return 0.0
-        return min(float(mesh_by_id[object_id].bounds[0][1]) for object_id in candidate_ids)
-
-    def _support_surfaces_for_child(
-        self,
-        parent_object_id: str,
-        mesh_by_id: dict[str, trimesh.Trimesh],
-        *,
-        root_object_ids: tuple[str, ...],
-        ground_y: float,
-    ) -> tuple[dict[str, object], ...]:
-        surfaces: list[dict[str, object]] = [{"y": ground_y, "footprint": None}]
-        # Use the immediate parent only. Root objects are already accounted for in the
-        # ground reference and can otherwise pull the child down into an unintended lower
-        # support band when the support graph is a chain.
-        mesh = mesh_by_id.get(parent_object_id)
-        if mesh is not None:
-            surface = self._top_surface(mesh)
-            if surface is not None:
-                surfaces.append(surface)
-        return tuple(surfaces)
-
-    def _top_surface(self, mesh: trimesh.Trimesh) -> dict[str, object] | None:
-        vertices = np.asarray(mesh.vertices, dtype=np.float64)
-        if vertices.size == 0:
-            return None
-        top_y = float(mesh.bounds[1][1])
-        extent_y = float(mesh.extents[1]) if len(mesh.extents) > 1 else 0.0
-        band = max(1e-4, min(2.5e-3, extent_y * 0.25 if extent_y > 0.0 else 2.5e-3))
-        near_top = np.abs(vertices[:, 1] - top_y) <= band
-        top_vertices = vertices[near_top] if np.any(near_top) else vertices
-        return {
-            "y": top_y,
-            "footprint": (
-                float(top_vertices[:, 0].min()),
-                float(top_vertices[:, 0].max()),
-                float(top_vertices[:, 2].min()),
-                float(top_vertices[:, 2].max()),
-            ),
-        }
-
-    def _support_surface_delta_y(
-        self,
-        child_mesh: trimesh.Trimesh,
-        surfaces: tuple[dict[str, object], ...],
-    ) -> float:
-        vertices = np.asarray(child_mesh.vertices, dtype=np.float64)
-        if vertices.size == 0 or not surfaces:
-            return 0.0
-        support_y = np.full(vertices.shape[0], float(surfaces[0]["y"]), dtype=np.float64)
-        for surface in surfaces[1:]:
-            footprint = surface.get("footprint")
-            if footprint is None:
-                support_y = np.maximum(support_y, float(surface["y"]))
-                continue
-            min_x, max_x, min_z, max_z = footprint
-            in_footprint = (
-                (vertices[:, 0] >= float(min_x))
-                & (vertices[:, 0] <= float(max_x))
-                & (vertices[:, 2] >= float(min_z))
-                & (vertices[:, 2] <= float(max_z))
-            )
-            if np.any(in_footprint):
-                support_y[in_footprint] = np.maximum(
-                    support_y[in_footprint],
-                    float(surface["y"]),
-                )
-        return float(np.min(vertices[:, 1] - support_y))
-
     def _extract_transformations(
         self,
         optimizer,
@@ -778,6 +676,7 @@ class LegacySequentialPhysicsAdapter:
             sys.modules.pop(name, None)
 
         try:
+            _preload_uipc_cuda_backend_first()
             self._install_uipc_compat()
             self._assert_uipc_compatibility()
             yield
@@ -895,14 +794,13 @@ class LegacySequentialPhysicsAdapter:
         args.min_static_start_frame = getattr(args, "min_static_start_frame", self._min_static_frames)
         defaults = LEGACY_OPTIMIZE_DEFAULTS if profile == "optimize_then_forward" else LEGACY_SHARED_DEFAULTS
         for key, value in defaults.items():
-            if hasattr(args, key):
-                setattr(args, key, value)
+            setattr(args, key, value)
         for key, value in self._legacy_arg_overrides.items():
-            if hasattr(args, key) and isinstance(value, (str, int, float, bool)):
+            if isinstance(value, (str, int, float, bool)):
                 setattr(args, key, value)
         settings = physics_ready_scene.collision_settings or {}
         for key, value in settings.items():
-            if hasattr(args, key) and isinstance(value, (int, float, bool)):
+            if isinstance(value, (int, float, bool)):
                 setattr(args, key, value)
         return args
 
@@ -938,6 +836,8 @@ class LegacySequentialPhysicsAdapter:
         if support_graph is not None and support_graph.relations:
             counts: dict[str, int] = {}
             for relation in support_graph.relations:
+                if not is_parent_child_relation_type(relation.relation_type):
+                    continue
                 counts[relation.parent_object_id] = counts.get(relation.parent_object_id, 0) + 1
             for object_id, _count in sorted(counts.items(), key=lambda item: item[1], reverse=True):
                 if object_id in trimesh_dict:
@@ -1402,18 +1302,11 @@ class LegacySequentialPhysicsAdapter:
         if support_graph is None or not support_graph.relations:
             return children_map, parent_map, tuple(self._ordered_unique_ids(object_ids)), None
 
-        allowed_relation_types = {
-            RelationType.SUPPORTS.value,
-            RelationType.ON.value,
-            RelationType.CONTAINS.value,
-            RelationType.IN.value,
-        }
         relation_nodes: set[str] = set()
         seen_edges: set[tuple[str, str]] = set()
 
         for relation in support_graph.relations:
-            relation_type = self._normalize_relation_type(relation.relation_type)
-            if relation_type not in allowed_relation_types:
+            if not is_parent_child_relation_type(relation.relation_type):
                 continue
             parent_id = relation.parent_object_id
             child_id = relation.child_object_id
@@ -1446,11 +1339,6 @@ class LegacySequentialPhysicsAdapter:
             return None, None, None, "missing_roots"
 
         return children_map, parent_map, tuple(self._ordered_unique_ids(tuple(roots))), None
-
-    def _normalize_relation_type(self, relation_type: RelationType | str) -> str:
-        if isinstance(relation_type, RelationType):
-            return relation_type.value
-        return str(relation_type).strip().lower()
 
     def _ordered_unique_ids(self, object_ids: tuple[str, ...] | list[str]) -> list[str]:
         ordered: list[str] = []

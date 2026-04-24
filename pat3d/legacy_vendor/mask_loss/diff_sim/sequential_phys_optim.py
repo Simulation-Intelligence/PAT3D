@@ -1,5 +1,6 @@
 import argparse
 import copy
+from itertools import count
 import math
 import numpy as np
 import polyscope as ps
@@ -54,6 +55,31 @@ import json
 import shutil
 from modules.bbox_put_utils.get_children_center import *
 
+_UIPC_WORKSPACE_COUNTER = count()
+
+
+def _make_uipc_engine_config(args):
+    confige = Engine.default_config()
+    confige.setdefault('gpu', {})['device'] = int(getattr(args, 'gpu_id', 0))
+    extras = confige.setdefault('extras', {})
+    if isinstance(extras, dict):
+        gui_config = extras.setdefault('gui', {})
+        if isinstance(gui_config, dict):
+            gui_config['enable'] = bool(getattr(args, 'gui_flag', False))
+    return confige
+
+
+def _make_uipc_workspace(result_folder, role, args):
+    pass_index = int(getattr(args, 'diff_sim_pass_index', 0))
+    workspace = os.path.join(
+        result_folder,
+        'workspace',
+        f'{role}_pass_{pass_index:03d}_{os.getpid()}_{next(_UIPC_WORKSPACE_COUNTER):04d}',
+    )
+    os.makedirs(workspace, exist_ok=True)
+    return workspace
+
+
 class PhysOptim(object):
     def __init__(self, args, container_name:str, mesh_dict:dict, tmesh_dict:dict):
 
@@ -70,8 +96,7 @@ class PhysOptim(object):
         Logger.set_level(Logger.Level.Warn)
 
         ## fixed physical parameters
-        confige = Engine.default_config() 
-        confige['gpu']['device'] = 0
+        confige = _make_uipc_engine_config(self.args)
         engine = Engine('cuda', self.workspace, confige)
         self.world = World(engine)
         config = Scene.default_config()
@@ -302,9 +327,7 @@ class PhysOptim(object):
 
 
         ## folder for storing the internal code logs
-        self.workspace = f'{self.result_folder}/workspace'
-        if not os.path.exists(self.workspace):
-            os.makedirs(self.workspace)
+        self.workspace = _make_uipc_workspace(self.result_folder, 'phys_optim', self.args)
 
         ## folder for storing the internal geometry
         self.geo_folder = f'{self.result_folder}/internal'
@@ -1550,8 +1573,7 @@ class PhysSimulator(object):
         ## parameters 
         ## fixed physical parameters
 
-        confige = Engine.default_config() 
-        confige['gpu']['device'] = 0
+        confige = _make_uipc_engine_config(self.args)
         engine = Engine('cuda', self.workspace, confige)
         self.world = World(engine)
         config = Scene.default_config()
@@ -1668,9 +1690,7 @@ class PhysSimulator(object):
 
 
         ## folder for storing the internal code logs
-        self.workspace = f'{self.result_folder}/workspace'
-        if not os.path.exists(self.workspace):
-            os.makedirs(self.workspace)
+        self.workspace = _make_uipc_workspace(self.result_folder, 'phys_sim', self.args)
 
         ## folder for storing the internal geometry
         self.geo_folder = f'{self.result_folder}/internal'

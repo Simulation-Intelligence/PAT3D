@@ -17,19 +17,32 @@ from pat3d.models import (
 
 
 _CHILD_TO_PARENT_TYPES = {
-    "on": RelationType.SUPPORTS,
+    "on": RelationType.ON,
     "supports": RelationType.SUPPORTS,
     "supported_by": RelationType.SUPPORTS,
-    "in": RelationType.CONTAINS,
-    "inside": RelationType.CONTAINS,
+    "in": RelationType.IN,
+    "inside": RelationType.IN,
     "contains": RelationType.CONTAINS,
-    "contained_by": RelationType.CONTAINS,
+    "contained_by": RelationType.IN,
 }
 _PARENT_TO_CHILD_TYPES = {
     "supports": RelationType.SUPPORTS,
     "contains": RelationType.CONTAINS,
 }
+PARENT_CHILD_RELATION_TYPES = frozenset({"supports", "on", "contains", "in"})
 _LEGACY_DEFAULT_RELATION = RelationType.SUPPORTS
+
+
+def relation_type_value(value: RelationType | str | None) -> str:
+    if isinstance(value, RelationType):
+        return value.value
+    if value is None:
+        return ""
+    return str(value).strip().lower()
+
+
+def is_parent_child_relation_type(value: RelationType | str | None) -> bool:
+    return relation_type_value(value) in PARENT_CHILD_RELATION_TYPES
 
 
 def match_object_id(object_catalog: ObjectCatalog | None, key: str) -> str | None:
@@ -494,7 +507,7 @@ def _expand_relation_instance_pairs(
 ) -> tuple[tuple[str, str], ...]:
     parent_ids = expanded_ids.get(relation.parent_object_id, (relation.parent_object_id,))
     child_ids = expanded_ids.get(relation.child_object_id, (relation.child_object_id,))
-    if relation.relation_type is RelationType.SUPPORTS:
+    if relation.relation_type in (RelationType.SUPPORTS, RelationType.ON):
         return (_select_support_relation_pair(
             relation.parent_object_id,
             relation.child_object_id,

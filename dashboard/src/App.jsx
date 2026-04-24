@@ -1170,21 +1170,41 @@ function sanitizePhysicsFloat(value, fallback, minimum, maximum) {
 function sanitizePhysicsSettings(value) {
   const raw = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return {
-    diffSimEnabled: typeof raw.diffSimEnabled === 'boolean'
-      ? raw.diffSimEnabled
+    diffSimEnabled: typeof (raw.diffSimEnabled ?? raw.diff_sim_enabled) === 'boolean'
+      ? raw.diffSimEnabled ?? raw.diff_sim_enabled
       : DEFAULT_PHYSICS_SETTINGS.diffSimEnabled,
-    endFrame: sanitizePhysicsInteger(raw.endFrame, DEFAULT_PHYSICS_SETTINGS.endFrame, 1, 5000),
+    endFrame: sanitizePhysicsInteger(
+      raw.endFrame ?? raw.end_frame,
+      DEFAULT_PHYSICS_SETTINGS.endFrame,
+      1,
+      5000,
+    ),
     groundYValue: sanitizePhysicsFloat(
       raw.groundYValue ?? raw.ground_y_value,
       DEFAULT_PHYSICS_SETTINGS.groundYValue,
       -10.0,
       10.0,
     ),
-    totalOptEpoch: sanitizePhysicsInteger(raw.totalOptEpoch, DEFAULT_PHYSICS_SETTINGS.totalOptEpoch, 1, 1000),
-    physLr: sanitizePhysicsFloat(raw.physLr, DEFAULT_PHYSICS_SETTINGS.physLr, 1e-6, 1.0),
-    contactDHat: sanitizePhysicsFloat(raw.contactDHat, DEFAULT_PHYSICS_SETTINGS.contactDHat, 1e-7, 1e-1),
+    totalOptEpoch: sanitizePhysicsInteger(
+      raw.totalOptEpoch ?? raw.total_opt_epoch,
+      DEFAULT_PHYSICS_SETTINGS.totalOptEpoch,
+      1,
+      1000,
+    ),
+    physLr: sanitizePhysicsFloat(
+      raw.physLr ?? raw.phys_lr,
+      DEFAULT_PHYSICS_SETTINGS.physLr,
+      1e-6,
+      1.0,
+    ),
+    contactDHat: sanitizePhysicsFloat(
+      raw.contactDHat ?? raw.contact_d_hat,
+      DEFAULT_PHYSICS_SETTINGS.contactDHat,
+      1e-7,
+      1e-1,
+    ),
     contactEpsVelocity: sanitizePhysicsFloat(
-      raw.contactEpsVelocity,
+      raw.contactEpsVelocity ?? raw.contact_eps_velocity,
       DEFAULT_PHYSICS_SETTINGS.contactEpsVelocity,
       1e-8,
       1e-1,
@@ -1674,6 +1694,7 @@ export default function App() {
   const assetSliderTabRefs = useRef(new Map());
   const selectedRuntimeRef = useRef(selectedRuntime);
   const activeJobIdRef = useRef(activeJobId);
+  const syncedPhysicsSettingsJobRef = useRef('');
   const activeLiveJob = activeJob && isLiveJobState(activeJob.state) ? activeJob : null;
   const globalLiveJob = useMemo(
     () => jobs.find((job) => isLiveJobState(job?.state)) || null,
@@ -1712,6 +1733,24 @@ export default function App() {
   useEffect(() => {
     activeJobIdRef.current = activeJobId;
   }, [activeJobId]);
+
+  const activeJobPhysicsSettingsKey = activeJob?.job_id && activeJob?.physics_settings
+    ? `${activeJob.job_id}:${JSON.stringify(activeJob.physics_settings)}`
+    : '';
+
+  useEffect(() => {
+    if (!activeJobPhysicsSettingsKey || !activeJob?.physics_settings) {
+      if (!activeJob?.job_id) {
+        syncedPhysicsSettingsJobRef.current = '';
+      }
+      return;
+    }
+    if (syncedPhysicsSettingsJobRef.current === activeJobPhysicsSettingsKey) {
+      return;
+    }
+    syncedPhysicsSettingsJobRef.current = activeJobPhysicsSettingsKey;
+    setPhysicsSettings(sanitizePhysicsSettings(activeJob.physics_settings));
+  }, [activeJobPhysicsSettingsKey, activeJob?.physics_settings]);
 
   async function downloadSceneExport(mode, targetBundle, sourceLabel) {
     if (!targetBundle) {

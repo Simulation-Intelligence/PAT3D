@@ -30,6 +30,7 @@ __pycache__/
 *.egg-info/
 
 extern/RoboGen/
+extern/Hunyuan3Dv2
 extern/Hunyuan3Dv2/
 extern/sam-3d-objects/
 extern/t2v_metrics/
@@ -77,6 +78,7 @@ paper/
 examples/runtime/
 results/archive_*/
 config.py
+!pat3d/runtime/config.py
 
 # Local UI/build artifacts
 dashboard/dist/

@@ -941,7 +941,14 @@ class LegacyInitialLayoutAdapter:
         return object_id.split(":")[-1]
 
     def _category_name(self, legacy_name: str) -> str:
-        return legacy_name.rstrip("0123456789").strip("_") or legacy_name
+        name = str(legacy_name).split(":")[-1].strip("_")
+        parts = [part for part in name.split("_") if part]
+        for width in range(1, (len(parts) // 2) + 1):
+            suffix = parts[-width:]
+            previous = parts[-(2 * width):-width]
+            if suffix == previous:
+                return re.sub(r"\d+$", "", "_".join(suffix)).strip("_") or name
+        return name.rstrip("0123456789").strip("_") or name
 
     def _run_bounded_layout(
         self,

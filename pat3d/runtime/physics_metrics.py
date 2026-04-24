@@ -334,9 +334,13 @@ def _resolve_loss_history_summary_path(
             if candidate.exists():
                 return candidate
 
-    fallback = Path(phys_result_root) / scene_id / "loss_history.json"
-    if fallback.exists():
-        return fallback
+    for fallback_dir in _scene_loss_history_candidate_dirs(
+        scene_id=scene_id,
+        phys_result_root=phys_result_root,
+    ):
+        fallback = fallback_dir / "loss_history.json"
+        if fallback.exists():
+            return fallback
     return None
 
 
@@ -350,13 +354,29 @@ def _resolve_loss_history_pass_paths(
     candidate_dirs: list[Path] = []
     if isinstance(runtime_payload, Mapping):
         candidate_dirs.extend(_loss_history_candidate_dirs(runtime_payload, runtime_path=runtime_path))
-    candidate_dirs.append(Path(phys_result_root) / scene_id)
+    candidate_dirs.extend(
+        _scene_loss_history_candidate_dirs(
+            scene_id=scene_id,
+            phys_result_root=phys_result_root,
+        )
+    )
 
     unique_dirs = _unique_paths(candidate_dirs)
     pass_paths: list[Path] = []
     for directory in unique_dirs:
         pass_paths.extend(sorted(directory.glob("loss_history_pass_*.json"), key=_snapshot_sort_key))
     return _unique_paths(pass_paths)
+
+
+def _scene_loss_history_candidate_dirs(
+    *,
+    scene_id: str,
+    phys_result_root: str | Path,
+) -> list[Path]:
+    return [
+        Path(phys_result_root) / scene_id,
+        REPO_ROOT / "results" / "workspaces" / scene_id / "physics" / scene_id,
+    ]
 
 
 def _loss_history_candidate_dirs(

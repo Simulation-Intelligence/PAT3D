@@ -281,6 +281,70 @@ def load_seg_items(seg_folder, case_name):
         seg_items_dict[seg_item_name] = seg_item_data
     return seg_items_dict
 
+
+def _strip_scene_prefix(name, case_name):
+    prefix = f"{case_name}_"
+    if name.startswith(prefix):
+        return name[len(prefix):].strip('_')
+    colon_prefix = f"{case_name}:"
+    if name.startswith(colon_prefix):
+        return name[len(colon_prefix):].strip('_')
+    return name.strip('_')
+
+
+def _collapse_repeated_instance_name(name):
+    parts = [part for part in name.split('_') if part]
+    for width in range(1, (len(parts) // 2) + 1):
+        suffix = parts[-width:]
+        previous = parts[-(2 * width):-width]
+        if suffix == previous:
+            return re.sub(r'\d+$', '', '_'.join(suffix)).strip('_')
+    return re.sub(r'\d+$', '', name).strip('_')
+
+
+def _layout_name_aliases(name, case_name):
+    aliases = []
+
+    def add(alias):
+        alias = str(alias).strip('_')
+        if alias and alias not in aliases:
+            aliases.append(alias)
+
+    raw_name = str(name).strip('_')
+    add(raw_name)
+    add(raw_name.split(':')[-1])
+    stripped_name = _strip_scene_prefix(raw_name.split(':')[-1], case_name)
+    add(stripped_name)
+    add(_collapse_repeated_instance_name(stripped_name))
+    add(get_object_category(stripped_name))
+    return tuple(aliases)
+
+
+def _remap_point_cloud_keys_to_mesh_keys(pc_dict, mesh_dict, case_name):
+    mesh_alias_lookup = {}
+    ambiguous_aliases = set()
+    for mesh_name in mesh_dict.keys():
+        for alias in _layout_name_aliases(mesh_name, case_name):
+            existing = mesh_alias_lookup.get(alias)
+            if existing is not None and existing != mesh_name:
+                ambiguous_aliases.add(alias)
+                continue
+            mesh_alias_lookup[alias] = mesh_name
+
+    remapped_pc_dict = {}
+    for pc_name, pc in pc_dict.items():
+        resolved_name = pc_name
+        for alias in _layout_name_aliases(pc_name, case_name):
+            candidate = mesh_alias_lookup.get(alias)
+            if candidate is not None and alias not in ambiguous_aliases:
+                resolved_name = candidate
+                break
+        if resolved_name in remapped_pc_dict:
+            remapped_pc_dict[resolved_name] = np.concatenate((remapped_pc_dict[resolved_name], pc), axis=0)
+        else:
+            remapped_pc_dict[resolved_name] = pc
+    return remapped_pc_dict
+
 def split_point_cloud(pc_data, seg_items_dict):
 
     point_cloud_dict = {}
@@ -522,11 +586,10 @@ def scale_obj_previous(obj_dict, x_length_dict, y_length_dict, max_obj_name, siz
 '''
 
 def get_object_category(obj_name):
-    ## get obj category 
-    category = [alpha for alpha in obj_name if not alpha.isdigit()]
-    category = ''.join(category)
-
-    return category 
+    name = str(obj_name).split(':')[-1].strip('_')
+    return _collapse_repeated_instance_name(name) or ''.join(
+        alpha for alpha in name if not alpha.isdigit()
+    )
 
 def get_object_ratio(ratio_info, obj_dict, max_obj_name):
 
@@ -572,6 +635,8 @@ def get_initial_layout(input_folder, input_depth_folder, input_seg_folder, \
                 'textured_obj': textured_obj,
                 'obj_path': obj_path
             }
+
+    pc_dict = _remap_point_cloud_keys_to_mesh_keys(pc_dict, mesh_dict, case_name)
     
 
     ## compute the front mean position of the object

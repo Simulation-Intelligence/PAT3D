@@ -73,6 +73,22 @@ def expand_object_asset_requests(
     return tuple(requests)
 
 
+def resolve_object_reference_image_for_asset_request(
+    object_reference_images: Mapping[str, ArtifactRef] | None,
+    *,
+    object_id: str,
+    source_object_id: str,
+) -> tuple[ArtifactRef | None, bool]:
+    if object_reference_images is None:
+        return None, False
+
+    instance_reference_image = object_reference_images.get(object_id)
+    if instance_reference_image is not None:
+        return instance_reference_image, object_id != source_object_id
+
+    return object_reference_images.get(source_object_id), False
+
+
 class ObjectAssetGenerationStage:
     stage_name = "object_asset_generation"
 
@@ -107,17 +123,21 @@ class ObjectAssetGenerationStage:
             object_descriptions,
         ):
             expanded_descriptions.append(generated_description)
+            object_reference_image, has_instance_reference_image = (
+                resolve_object_reference_image_for_asset_request(
+                    object_reference_images,
+                    object_id=generated_description.object_id,
+                    source_object_id=source_object_id,
+                )
+            )
             cached_asset = cached_assets_by_source_id.get(source_object_id)
-            if cached_asset is not None:
+            if cached_asset is not None and not has_instance_reference_image:
                 ordered_assets.append(
                     clone_generated_asset_for_object_id(cached_asset, generated_description.object_id)
                 )
                 continue
             generation_kwargs = {
-                "object_reference_image": (
-                    (object_reference_images or {}).get(generated_description.object_id)
-                    or (object_reference_images or {}).get(source_object_id)
-                ),
+                "object_reference_image": object_reference_image,
             }
             if any(
                 parameter.name == "source_object_count"
@@ -129,7 +149,8 @@ class ObjectAssetGenerationStage:
                 generation_kwargs["scene_object_canonical_names"] = scene_object_canonical_names
             generated_asset = self._text_to_3d_provider.generate(generated_description, **generation_kwargs)
             ordered_assets.append(generated_asset)
-            cached_assets_by_source_id[source_object_id] = generated_asset
+            if not has_instance_reference_image:
+                cached_assets_by_source_id[source_object_id] = generated_asset
 
         return ObjectAssetGenerationOutputs(
             object_catalog=object_catalog,

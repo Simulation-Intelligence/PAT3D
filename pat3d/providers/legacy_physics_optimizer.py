@@ -86,12 +86,14 @@ class LegacyDiffSimPhysicsOptimizer(PhysicsOptimizer):
                 recovered = self._recover_from_saved_frames(physics_ready_scene, failure=exc)
                 if recovered is not None:
                     result = recovered
-                elif self._subprocess_runner is not None:
+                elif self._subprocess_runner is not None or self._mode == "optimize_then_forward":
                     raise
                 else:
                     fallback_error = exc
                     result = None
             else:
+                if self._mode == "optimize_then_forward":
+                    raise
                 fallback_error = exc
                 result = None
 
@@ -122,6 +124,25 @@ class LegacyDiffSimPhysicsOptimizer(PhysicsOptimizer):
             ):
                 metrics["forward_diff_simulator_failed"] = 1.0
                 metrics["zero_frame_forward_result"] = 1.0
+                raise runtime_failure(
+                    phase="provider_execution",
+                    code="legacy_physics_zero_frame_forward_result",
+                    user_message="Physics simulation did not advance beyond the initial frame.",
+                    technical_message=(
+                        "Legacy forward simulator returned frame 0 with unchanged object poses. "
+                        "The initial physics scene is likely invalid, commonly because a mesh "
+                        "starts intersecting the ground plane or another object."
+                    ),
+                    provider_kind="legacy_diff_sim",
+                    retryable=True,
+                    details={
+                        "mode": self._mode,
+                        "scene_id": physics_ready_scene.scene_id,
+                        "forward_simulator_final_frame": float(
+                            metrics.get("forward_simulator_final_frame", 0.0) or 0.0
+                        ),
+                    },
+                )
         notes = ()
         if result is None:
             notes = ("identity_passthrough",)
@@ -142,8 +163,6 @@ class LegacyDiffSimPhysicsOptimizer(PhysicsOptimizer):
                 notes = notes + ("forward_diff_simulator_failed",)
             if metrics.get("zero_frame_forward_result", 0.0) > 0.0:
                 notes = notes + ("zero_frame_forward_result",)
-            if metrics.get("support_contact_projection_count", 0.0) > 0.0:
-                notes = notes + ("support_contact_projection_used",)
             if metrics.get("recovered_from_subprocess_failure", 0.0) > 0.0:
                 notes = notes + ("recovered_from_subprocess_failure",)
             recovery_reason = result.get("recovery_reason")
@@ -377,7 +396,7 @@ class LegacyDiffSimPhysicsOptimizer(PhysicsOptimizer):
     def _clear_previous_outputs(self, physics_ready_scene: PhysicsReadyScene) -> None:
         args = self._adapter._build_args(physics_ready_scene)
         scene_root = Path(args.phys_result_folder) / args.exp_name
-        for folder_name in ("transform", "param"):
+        for folder_name in ("transform", "param", "workspace"):
             candidate = scene_root / folder_name
             if candidate.exists():
                 shutil.rmtree(candidate)
@@ -456,7 +475,6 @@ class LegacyDiffSimPhysicsOptimizer(PhysicsOptimizer):
                 "forward_simulator_final_frame": float(self._frame_number(stable_frame_path)),
                 "forward_simulator_stopped_static": 1.0,
                 "recovered_from_subprocess_failure": 1.0,
-                "support_contact_projection_count": 0.0,
             },
             "recovery_reason": f"{type(failure).__name__}: {failure}",
         }
